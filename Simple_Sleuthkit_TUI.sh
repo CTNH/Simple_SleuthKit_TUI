@@ -1,7 +1,21 @@
 #!/bin/sh
 
+# Colors for whiptail
+# Reference: https://askubuntu.com/questions/776831/whiptail-change-background-color-dynamically-from-magenta/781062#781062
+export NEWT_COLORS='
+  sellistbox=black,brightmagenta
+  actsellistbox=black,brightmagenta
+  actlistbox=black,brown
+  listbox=black,
+  window=,lightgray
+  root=,gray
+  title=brightred,
+  actbutton=black,magenta
+  button=black,red
+'
+
 # Find max length of element from an array
-function maxInArr() {
+maxInArr() {
     arr=("$@")
     maxLength=${#arr[0]}
     for i in "${arr[@]:1}"; do
@@ -10,6 +24,12 @@ function maxInArr() {
         fi
     done
     return $maxLength
+}
+# Set termSize to size of terminal on calling time
+calcTermSize() {
+    IFS=' ' read -ra termSize <<< "$(stty size)"
+    termSize[0]=$((termSize[0]-4))
+    termSize[1]=$((termSize[1]-8))
 }
 
 # Store output of lsblk into 'lines' separated by "\n"
@@ -51,9 +71,9 @@ for (( i=0; i < ${#name[@]}; ++i )); do
     options+=("$(printf -- "${name[i]} %$namePad.s ${mntPt[i]} %$mntPtPad.s ${d_size[i]}\n")")
 done
 
-pName="$(whiptail --title "Menu" --notags --menu 'Choose a parition' 32 75 0 -- "${options[@]}" 3>&1 1>&2 2>&3)"
-if [ -z $pName ]; then echo "None Selected."; exit; fi
-
+calcTermSize
+pName="$(whiptail --title "Partitions" --notags --menu "Choose a parition" "${termSize[@]}" 0 -- "${options[@]}" 3>&1 1>&2 2>&3)"
+if [ -z $pName ]; then exit; fi  # Terminate on exit
 
 prevInode="/"
 nestedDeletedInode=0
@@ -84,7 +104,8 @@ while true; do  # Loop until stopped
         entries+=("$(printf -- "%$tmp.s${entry_type[i]}  ${entry_name[i]}")")
     done
     
-    tmp="$(whiptail --title "Menu" --notags --cancel-button "Exit" --menu 'Select File/Directory' 32 75 0 -- "${entries[@]}" 3>&1 1>&2 2>&3)"
+    calcTermSize
+    tmp="$(whiptail --title "Menu" --notags --cancel-button "Exit" --menu 'Select File/Directory (* - deleted)' "${termSize[@]}" 0 -- "${entries[@]}" 3>&1 1>&2 2>&3)"
     # Exit if exit selected
     if [ -z $tmp ]; then exit; fi
     if [ "${entry_type[tmp]:0-1}" = "d" ]; then  # If entry is directory (ends in d)
